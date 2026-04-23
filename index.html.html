@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLAUDE.md Generator — Turn conversations into the perfect CLAUDE.md</title>
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --surface: #141416;
+    --surface-2: #1c1c20;
+    --border: #2a2a30;
+    --text: #e4e4e7;
+    --text-dim: #71717a;
+    --accent: #8b5cf6;
+    --accent-hover: #7c3aed;
+    --accent-dim: rgba(139,92,246,0.1);
+    --green: #22c55e;
+    --green-dim: #16a34a;
+    --orange: #f59e0b;
+    --red: #ef4444;
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  .container { max-width:1100px; margin:0 auto; padding:32px 24px; }
+
+  /* Header */
+  .header { text-align:center; margin-bottom:32px; }
+  .header h1 { font-size:32px; font-weight:700; letter-spacing:-0.5px; margin-bottom:8px; }
+  .header h1 span { color:var(--accent); }
+  .header p { color:var(--text-dim); font-size:14px; max-width:520px; margin:0 auto; }
+
+  /* Steps */
+  .steps { display:flex; gap:8px; justify-content:center; margin-bottom:28px; }
+  .step-pill { padding:6px 16px; border-radius:20px; font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--surface); color:var(--text-dim); cursor:pointer; transition:all 0.2s; }
+  .step-pill.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .step-pill.done { border-color:var(--green-dim); color:var(--green); background:rgba(34,197,94,0.08); }
+
+  /* Panels */
+  .panel { display:none; }
+  .panel.active { display:block; }
+
+  /* Input section */
+  .input-grid { display:grid; gap:16px; margin-bottom:20px; }
+  .input-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .card-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); background:var(--surface-2); }
+  .card-label { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); }
+  .card-hint { font-size:11px; color:var(--text-dim); opacity:0.7; }
+  textarea { width:100%; min-height:180px; padding:16px; border:none; background:transparent; color:var(--text); font-family:'SF Mono','Fira Code','Consolas',monospace; font-size:13px; line-height:1.6; resize:vertical; outline:none; }
+  textarea::placeholder { color:var(--text-dim); opacity:0.4; }
+
+  /* Preferences checklist */
+  .prefs-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:16px; }
+  @media(max-width:600px) { .prefs-grid { grid-template-columns:1fr; } }
+  .pref-item { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); cursor:pointer; transition:all 0.15s; }
+  .pref-item:hover { border-color:var(--accent); }
+  .pref-item.selected { border-color:var(--accent); background:var(--accent-dim); }
+  .pref-item input[type=checkbox] { accent-color:var(--accent); }
+  .pref-label { font-size:12px; font-weight:500; }
+
+  /* Buttons */
+  .btn-row { display:flex; gap:12px; justify-content:center; margin:20px 0; flex-wrap:wrap; }
+  .btn-primary { padding:12px 32px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .btn-primary:hover { background:var(--accent-hover); transform:translateY(-1px); }
+  .btn-secondary { padding:10px 20px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text-dim); font-size:13px; font-weight:500; cursor:pointer; transition:all 0.2s; }
+  .btn-secondary:hover { border-color:var(--text-dim); color:var(--text); }
+
+  /* Output */
+  .output-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .output-text { padding:16px; font-family:'SF Mono','Fira Code','Consolas',monospace; font-size:13px; line-height:1.6; white-space:pre-wrap; word-break:break-word; min-height:300px; max-height:600px; overflow-y:auto; }
+
+  /* Stats */
+  .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+  .stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; text-align:center; }
+  .stat-val { font-size:24px; font-weight:700; color:var(--accent); }
+  .stat-lbl { font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); margin-top:2px; }
+
+  /* Deep generate */
+  .deep-section { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-top:20px; }
+  .deep-section h3 { font-size:15px; margin-bottom:6px; }
+  .deep-section p { color:var(--text-dim); font-size:13px; margin-bottom:12px; }
+  .api-row { display:flex; gap:8px; }
+  .api-input { flex:1; padding:10px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); font-size:13px; outline:none; }
+  .api-input:focus { border-color:var(--accent); }
+  .api-input::placeholder { color:var(--text-dim); opacity:0.5; }
+
+  /* Footer */
+  .footer { text-align:center; margin-top:40px; color:var(--text-dim); font-size:12px; }
+
+  /* Sections in output */
+  .section-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:600; text-transform:uppercase; margin-right:4px; }
+  .section-tag.extracted { background:rgba(34,197,94,0.15); color:var(--green); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>CLAUDE<span>.md</span> Generator</h1>
+    <p>Paste your conversations, pick your preferences, get a production-ready CLAUDE.md in seconds.</p>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step-pill active" data-step="1" onclick="goStep(1)">1. Input</div>
+    <div class="step-pill" data-step="2" onclick="goStep(2)">2. Preferences</div>
+    <div class="step-pill" data-step="3" onclick="goStep(3)">3. Generate</div>
+  </div>
+
+  <!-- STEP 1: Input -->
+  <div class="panel active" id="panel-1">
+    <div class="input-grid">
+      <div class="input-card">
+        <div class="card-header">
+          <span class="card-label">Paste Conversations</span>
+          <span class="card-hint">Chat logs, Claude exports, or raw text</span>
+        </div>
+        <textarea id="conversations" placeholder="Paste your conversation history here. The tool will extract your coding style, preferences, and patterns..."></textarea>
+      </div>
+      <div class="input-card">
+        <div class="card-header">
+          <span class="card-label">Project Context (optional)</span>
+          <span class="card-hint">Tech stack, repo info, team conventions</span>
+        </div>
+        <textarea id="project-context" placeholder="e.g. React + TypeScript frontend, Python FastAPI backend, PostgreSQL, deployed on AWS..." style="min-height:100px;"></textarea>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="goStep(2)">Next → Preferences</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Preferences -->
+  <div class="panel" id="panel-2">
+    <div class="input-card">
+      <div class="card-header">
+        <span class="card-label">What should your CLAUDE.md include?</span>
+        <span class="card-hint">Select all that apply</span>
+      </div>
+      <div class="prefs-grid" id="prefs-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <div class="input-card" style="margin-top:16px;">
+      <div class="card-header">
+        <span class="card-label">Response Style</span>
+      </div>
+      <div class="prefs-grid">
+        <div class="pref-item selected" onclick="toggleStyle(this)" data-style="concise">
+          <input type="radio" name="style" checked> <span class="pref-label">Concise (token-efficient)</span>
+        </div>
+        <div class="pref-item" onclick="toggleStyle(this)" data-style="detailed">
+          <input type="radio" name="style"> <span class="pref-label">Detailed explanations</span>
+        </div>
+        <div class="pref-item" onclick="toggleStyle(this)" data-style="caveman">
+          <input type="radio" name="style"> <span class="pref-label">Caveman mode</span>
+        </div>
+        <div class="pref-item" onclick="toggleStyle(this)" data-style="balanced">
+          <input type="radio" name="style"> <span class="pref-label">Balanced</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="goStep(1)">← Back</button>
+      <button class="btn-primary" onclick="generate()">Generate CLAUDE.md</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Output -->
+  <div class="panel" id="panel-3">
+    <div class="stats-row" id="stats-row" style="display:none;">
+      <div class="stat"><div class="stat-val" id="stat-sections">0</div><div class="stat-lbl">Sections</div></div>
+      <div class="stat"><div class="stat-val" id="stat-rules">0</div><div class="stat-lbl">Rules Generated</div></div>
+      <div class="stat"><div class="stat-val" id="stat-lines">0</div><div class="stat-lbl">Lines</div></div>
+    </div>
+
+    <div class="output-card">
+      <div class="card-header">
+        <span class="card-label">Your CLAUDE.md</span>
+        <span class="card-hint" id="output-hint">Ready to copy into your project root</span>
+      </div>
+      <div class="output-text" id="output">Generate your CLAUDE.md first...</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="goStep(2)">← Edit Preferences</button>
+      <button class="btn-primary" onclick="copyOutput()">Copy to Clipboard</button>
+      <button class="btn-secondary" onclick="downloadOutput()">Download .md</button>
+    </div>
+
+    <div class="deep-section">
+      <h3>AI-Powered Generation</h3>
+      <p>For smarter extraction from your conversations, add your API key. Analyzes patterns, coding style, and preferences automatically.</p>
+      <div class="api-row">
+        <select class="api-input" id="api-provider" style="flex:0 0 160px;">
+          <option value="anthropic">Anthropic</option>
+          <option value="openai">OpenAI</option>
+        </select>
+        <input type="password" class="api-input" id="api-key" placeholder="sk-ant-... or sk-...">
+        <button class="btn-primary" onclick="deepGenerate()" style="padding:10px 20px;font-size:13px;">AI Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">CLAUDE.md Generator — Stop guessing. Start configuring.</div>
+</div>
+
+<script>
+// Preferences options
+const prefOptions = [
+  { id: 'token_saving', label: 'Token-efficient responses', default: true },
+  { id: 'no_sycophancy', label: 'No sycophantic openers', default: true },
+  { id: 'code_style', label: 'Code style & conventions', default: true },
+  { id: 'error_handling', label: 'Error handling patterns', default: false },
+  { id: 'testing', label: 'Testing requirements', default: false },
+  { id: 'git_conventions', label: 'Git commit conventions', default: false },
+  { id: 'file_structure', label: 'File/folder structure rules', default: false },
+  { id: 'security', label: 'Security guidelines', default: false },
+  { id: 'comments', label: 'Comment style rules', default: false },
+  { id: 'dependencies', label: 'Dependency management', default: false },
+  { id: 'forbidden', label: 'Forbidden patterns', default: true },
+  { id: 'naming', label: 'Naming conventions', default: true },
+];
+
+// Render prefs
+const prefsGrid = document.getElementById('prefs-grid');
+prefOptions.forEach(p => {
+  const div = document.createElement('div');
+  div.className = 'pref-item' + (p.default ? ' selected' : '');
+  div.dataset.pref = p.id;
+  div.onclick = () => { div.classList.toggle('selected'); div.querySelector('input').checked = div.classList.contains('selected'); };
+  div.innerHTML = `<input type="checkbox" ${p.default ? 'checked' : ''}> <span class="pref-label">${p.label}</span>`;
+  prefsGrid.appendChild(div);
+});
+
+let selectedStyle = 'concise';
+
+function toggleStyle(el) {
+  document.querySelectorAll('[data-style]').forEach(e => { e.classList.remove('selected'); e.querySelector('input').checked = false; });
+  el.classList.add('selected');
+  el.querySelector('input').checked = true;
+  selectedStyle = el.dataset.style;
+}
+
+function goStep(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  document.querySelectorAll('.step-pill').forEach(s => {
+    const sn = parseInt(s.dataset.step);
+    s.classList.remove('active');
+    if (sn === n) s.classList.add('active');
+    if (sn < n) s.classList.add('done');
+    else s.classList.remove('done');
+  });
+}
+
+// === Extract patterns from conversation text ===
+function extractPatterns(text) {
+  const patterns = {
+    languages: new Set(),
+    frameworks: new Set(),
+    tools: new Set(),
+    preferences: [],
+    codePatterns: [],
+  };
+
+  // Language detection
+  const langMap = {
+    'python': 'Python', 'javascript': 'JavaScript', 'typescript': 'TypeScript',
+    'react': 'React', 'vue': 'Vue', 'angular': 'Angular', 'svelte': 'Svelte',
+    'node': 'Node.js', 'deno': 'Deno', 'bun': 'Bun',
+    'rust': 'Rust', 'go ': 'Go', 'golang': 'Go', 'java ': 'Java', 'kotlin': 'Kotlin',
+    'swift': 'Swift', 'ruby': 'Ruby', 'php': 'PHP', 'c#': 'C#', 'csharp': 'C#',
+    'fastapi': 'FastAPI', 'django': 'Django', 'flask': 'Flask', 'express': 'Express',
+    'nextjs': 'Next.js', 'next.js': 'Next.js', 'nuxt': 'Nuxt',
+    'tailwind': 'Tailwind CSS', 'scss': 'SCSS', 'sass': 'SASS',
+    'postgresql': 'PostgreSQL', 'postgres': 'PostgreSQL', 'mysql': 'MySQL',
+    'mongodb': 'MongoDB', 'redis': 'Redis', 'sqlite': 'SQLite',
+    'docker': 'Docker', 'kubernetes': 'Kubernetes', 'k8s': 'Kubernetes',
+    'aws': 'AWS', 'gcp': 'GCP', 'azure': 'Azure', 'vercel': 'Vercel',
+    'supabase': 'Supabase', 'firebase': 'Firebase',
+    'prisma': 'Prisma', 'drizzle': 'Drizzle', 'sqlalchemy': 'SQLAlchemy',
+    'jest': 'Jest', 'vitest': 'Vitest', 'pytest': 'pytest', 'mocha': 'Mocha',
+    'graphql': 'GraphQL', 'trpc': 'tRPC', 'rest api': 'REST API',
+  };
+
+  const lower = text.toLowerCase();
+  for (const [key, val] of Object.entries(langMap)) {
+    if (lower.includes(key)) {
+      if (['Python','JavaScript','TypeScript','Rust','Go','Java','Kotlin','Swift','Ruby','PHP','C#'].includes(val))
+        patterns.languages.add(val);
+      else if (['Jest','Vitest','pytest','Mocha','Docker','Kubernetes','Vercel','AWS','GCP','Azure'].includes(val))
+        patterns.tools.add(val);
+      else
+        patterns.frameworks.add(val);
+    }
+  }
+
+  // Preference detection
+  const prefPatterns = [
+    [/\b(prefer|always use|stick to|use)\s+(async\/await|promises)/i, 'Prefer async/await over raw promises'],
+    [/\b(prefer|use)\s+(const|let)\b/i, 'Prefer const over let where possible'],
+    [/\b(functional|fp)\s+(style|approach|programming)/i, 'Prefer functional programming patterns'],
+    [/\b(oop|object.oriented|class.based)/i, 'Use object-oriented patterns'],
+    [/\b(no any|avoid any|don'?t use any)\b/i, 'Never use `any` type in TypeScript'],
+    [/\b(strict\s*mode|use strict)/i, 'Enable strict mode'],
+    [/\b(early return|guard clause)/i, 'Use early returns / guard clauses'],
+    [/\b(arrow function|arrow func)/i, 'Prefer arrow functions'],
+    [/\b(named export|named import)/i, 'Use named exports over default exports'],
+    [/\b(camelCase|camel_case)/i, 'Use camelCase for variables and functions'],
+    [/\b(snake_case)/i, 'Use snake_case naming convention'],
+    [/\b(kebab.case)/i, 'Use kebab-case for file names'],
+    [/\b(single quotes|'[^']*')/i, 'Use single quotes for strings'],
+    [/\b(double quotes|"[^"]*")/i, 'Use double quotes for strings'],
+    [/\b(semicolons?)\b.*\b(no|without|omit|skip)/i, 'No semicolons'],
+    [/\b(tabs?)\s+(indent|for indent)/i, 'Use tabs for indentation'],
+    [/\b(2\s*space|two\s*space)\s*(indent)/i, 'Use 2-space indentation'],
+    [/\b(4\s*space|four\s*space)\s*(indent)/i, 'Use 4-space indentation'],
+    [/\b(don'?t|never|avoid)\s+(console\.log|print statement)/i, 'Remove console.log/print statements from production code'],
+    [/\b(dry|don'?t repeat yourself)/i, 'Follow DRY principle'],
+    [/\b(solid principles?)/i, 'Follow SOLID principles'],
+  ];
+
+  for (const [regex, desc] of prefPatterns) {
+    if (regex.test(text)) patterns.preferences.push(desc);
+  }
+
+  return patterns;
+}
+
+// === Build CLAUDE.md ===
+function generate() {
+  const conversations = document.getElementById('conversations').value;
+  const projectCtx = document.getElementById('project-context').value;
+  const selectedPrefs = [...document.querySelectorAll('.pref-item.selected')].map(el => el.dataset.pref);
+
+  const patterns = extractPatterns(conversations + ' ' + projectCtx);
+  let md = '';
+  let sectionCount = 0;
+  let ruleCount = 0;
+
+  // Title
+  md += '# CLAUDE.md\n\n';
+  md += '> Auto-generated project configuration for Claude Code.\n\n';
+
+  // Project overview
+  if (patterns.languages.size || patterns.frameworks.size || projectCtx) {
+    sectionCount++;
+    md += '## Project Overview\n\n';
+    if (projectCtx.trim()) {
+      md += projectCtx.trim() + '\n\n';
+    }
+    if (patterns.languages.size) {
+      md += '**Languages:** ' + [...patterns.languages].join(', ') + '\n';
+      ruleCount++;
+    }
+    if (patterns.frameworks.size) {
+      md += '**Frameworks:** ' + [...patterns.frameworks].join(', ') + '\n';
+      ruleCount++;
+    }
+    if (patterns.tools.size) {
+      md += '**Tools:** ' + [...patterns.tools].join(', ') + '\n';
+      ruleCount++;
+    }
+    md += '\n';
+  }
+
+  // Response style
+  sectionCount++;
+  md += '## Response Style\n\n';
+  if (selectedStyle === 'concise') {
+    md += '- Be concise. No filler, no sycophancy, no restatements.\n';
+    md += '- Skip "Great question!", "I\'d be happy to help", etc.\n';
+    md += '- One pass — don\'t summarize then repeat with details.\n';
+    md += '- No sign-offs like "Let me know if you have questions!"\n';
+    ruleCount += 4;
+  } else if (selectedStyle === 'caveman') {
+    md += '- Talk like caveman. Few words. No articles unless meaning breaks.\n';
+    md += '- Drop helper verbs. "File created" not "The file has been created."\n';
+    md += '- Use arrows: "Config wrong → fix: change port 3000 → 8080"\n';
+    md += '- Code output stays fully intact and correct.\n';
+    ruleCount += 4;
+  } else if (selectedStyle === 'detailed') {
+    md += '- Provide detailed explanations with reasoning.\n';
+    md += '- Explain trade-offs when multiple approaches exist.\n';
+    md += '- Include relevant context and background.\n';
+    ruleCount += 3;
+  } else {
+    md += '- Be clear and direct. Explain when needed, skip fluff.\n';
+    ruleCount++;
+  }
+  md += '\n';
+
+  // Code style
+  if (selectedPrefs.includes('code_style') || selectedPrefs.includes('naming')) {
+    sectionCount++;
+    md += '## Code Style\n\n';
+    if (patterns.preferences.length) {
+      patterns.preferences.forEach(p => { md += '- ' + p + '\n'; ruleCount++; });
+    } else {
+      md += '- Follow existing codebase conventions.\n';
+      md += '- Consistent formatting with project\'s linter config.\n';
+      ruleCount += 2;
+    }
+    if (selectedPrefs.includes('naming')) {
+      if (!patterns.preferences.some(p => p.includes('Case'))) {
+        md += '- Use consistent naming: variables (camelCase), constants (UPPER_SNAKE), components (PascalCase).\n';
+        ruleCount++;
+      }
+    }
+    md += '\n';
+  }
+
+  // Error handling
+  if (selectedPrefs.includes('error_handling')) {
+    sectionCount++;
+    md += '## Error Handling\n\n';
+    md += '- Always handle errors explicitly. No silent catches.\n';
+    md += '- Use typed errors where the language supports it.\n';
+    md += '- Log errors with context (what failed, with what input).\n';
+    ruleCount += 3;
+    md += '\n';
+  }
+
+  // Testing
+  if (selectedPrefs.includes('testing')) {
+    sectionCount++;
+    md += '## Testing\n\n';
+    const testTool = patterns.tools.has('Jest') ? 'Jest' : patterns.tools.has('Vitest') ? 'Vitest' : patterns.tools.has('pytest') ? 'pytest' : null;
+    if (testTool) md += '- Use ' + testTool + ' for tests.\n';
+    md += '- Write tests for new functions. Cover happy path + edge cases.\n';
+    md += '- Test names should describe behavior: "should return empty array when input is null".\n';
+    ruleCount += (testTool ? 3 : 2);
+    md += '\n';
+  }
+
+  // Git
+  if (selectedPrefs.includes('git_conventions')) {
+    sectionCount++;
+    md += '## Git Conventions\n\n';
+    md += '- Use conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`\n';
+    md += '- Keep commits atomic — one logical change per commit.\n';
+    md += '- Write commit messages in imperative mood: "Add feature" not "Added feature".\n';
+    ruleCount += 3;
+    md += '\n';
+  }
+
+  // File structure
+  if (selectedPrefs.includes('file_structure')) {
+    sectionCount++;
+    md += '## File Structure\n\n';
+    md += '- Co-locate related files (component + test + styles together).\n';
+    md += '- One component/module per file.\n';
+    md += '- Keep files under 300 lines. Split if larger.\n';
+    ruleCount += 3;
+    md += '\n';
+  }
+
+  // Security
+  if (selectedPrefs.includes('security')) {
+    sectionCount++;
+    md += '## Security\n\n';
+    md += '- Never hardcode secrets, API keys, or credentials.\n';
+    md += '- Validate and sanitize all user inputs.\n';
+    md += '- Use parameterized queries for database operations.\n';
+    ruleCount += 3;
+    md += '\n';
+  }
+
+  // Comments
+  if (selectedPrefs.includes('comments')) {
+    sectionCount++;
+    md += '## Comments\n\n';
+    md += '- Comment WHY, not WHAT. Code should be self-documenting.\n';
+    md += '- Use JSDoc/docstrings for public APIs and complex functions.\n';
+    md += '- Remove commented-out code. Use git history instead.\n';
+    ruleCount += 3;
+    md += '\n';
+  }
+
+  // Dependencies
+  if (selectedPrefs.includes('dependencies')) {
+    sectionCount++;
+    md += '## Dependencies\n\n';
+    md += '- Minimize external dependencies. Prefer standard library.\n';
+    md += '- Pin dependency versions. No floating ranges in production.\n';
+    md += '- Evaluate bundle size impact before adding new packages.\n';
+    ruleCount += 3;
+    md += '\n';
+  }
+
+  // Forbidden
+  if (selectedPrefs.includes('forbidden')) {
+    sectionCount++;
+    md += '## Forbidden Patterns\n\n';
+    md += '- Do NOT use `any` type (TypeScript) unless absolutely unavoidable.\n';
+    md += '- Do NOT leave TODO/FIXME comments without a tracking issue.\n';
+    md += '- Do NOT commit `.env` files or secrets.\n';
+    md += '- Do NOT use deprecated APIs or libraries.\n';
+    ruleCount += 4;
+    md += '\n';
+  }
+
+  // Token saving
+  if (selectedPrefs.includes('token_saving') || selectedPrefs.includes('no_sycophancy')) {
+    sectionCount++;
+    md += '## Token Efficiency\n\n';
+    md += '- Minimize output tokens. Every token costs money.\n';
+    md += '- No filler phrases: "It\'s worth noting", "Essentially", "Basically".\n';
+    md += '- No restatements of the question.\n';
+    md += '- Use code comments sparingly — only for non-obvious logic.\n';
+    ruleCount += 4;
+    md += '\n';
+  }
+
+  // Display
+  const outputEl = document.getElementById('output');
+  outputEl.textContent = md;
+
+  const lines = md.split('\n').length;
+  document.getElementById('stat-sections').textContent = sectionCount;
+  document.getElementById('stat-rules').textContent = ruleCount;
+  document.getElementById('stat-lines').textContent = lines;
+  document.getElementById('stats-row').style.display = 'grid';
+
+  goStep(3);
+}
+
+function copyOutput() {
+  const text = document.getElementById('output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btns = document.querySelectorAll('.btn-primary');
+    const btn = btns[btns.length - 2];
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+function downloadOutput() {
+  const text = document.getElementById('output').textContent;
+  const blob = new Blob([text], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'CLAUDE.md';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function deepGenerate() {
+  const conversations = document.getElementById('conversations').value;
+  const projectCtx = document.getElementById('project-context').value;
+  const apiKey = document.getElementById('api-key').value;
+  const provider = document.getElementById('api-provider').value;
+  const selectedPrefs = [...document.querySelectorAll('.pref-item.selected')].map(el => {
+    return el.querySelector('.pref-label').textContent;
+  });
+
+  if (!conversations.trim() && !projectCtx.trim()) return alert('Add some input first.');
+  if (!apiKey.trim()) return alert('Add your API key.');
+
+  const outputEl = document.getElementById('output');
+  outputEl.textContent = 'Analyzing conversations with AI...';
+
+  const systemPrompt = `You are an expert at creating CLAUDE.md files for Claude Code projects.
+Analyze the user's conversation history and project context to generate a comprehensive, production-ready CLAUDE.md.
+
+Extract:
+- Programming languages, frameworks, and tools used
+- Coding style preferences (naming, formatting, patterns)
+- Common patterns and conventions
+- Error handling approaches
+- Testing preferences
+- Any explicit preferences stated
+
+The user selected these sections to include: ${selectedPrefs.join(', ')}
+Response style preference: ${selectedStyle}
+
+Output ONLY the CLAUDE.md content in clean markdown. Make it specific and actionable — not generic boilerplate.
+Every rule should be something Claude Code can act on immediately.
+Keep it under 100 lines. No fluff.`;
+
+  try {
+    let result;
+    if (provider === 'anthropic') {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: `Conversations:\n${conversations}\n\nProject context:\n${projectCtx}` }]
+        })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message);
+      result = data.content[0].text;
+    } else {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Conversations:\n${conversations}\n\nProject context:\n${projectCtx}` }
+          ]
+        })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error.message);
+      result = data.choices[0].message.content;
+    }
+
+    outputEl.textContent = result;
+    const lines = result.split('\n').length;
+    const sections = (result.match(/^## /gm) || []).length;
+    const rules = (result.match(/^- /gm) || []).length;
+    document.getElementById('stat-sections').textContent = sections;
+    document.getElementById('stat-rules').textContent = rules;
+    document.getElementById('stat-lines').textContent = lines;
+    document.getElementById('stats-row').style.display = 'grid';
+
+  } catch(err) {
+    outputEl.textContent = 'Error: ' + err.message;
+  }
+}
+</script>
+</body>
+</html>
